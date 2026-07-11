@@ -1,5 +1,7 @@
 name: Release Docker Image
 
+run-name: Release ${{ github.ref_name }} to Docker Hub
+
 on:
   push:
     tags:
