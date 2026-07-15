@@ -1,10 +1,17 @@
 pipeline {
-    agent any
+    agent {
+        label 'go'
+    }
 
     options {
         timestamps()
         timeout(time: 10, unit: 'MINUTES')
         disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+    }
+
+    environment {
+        CGO_ENABLED = '0'
     }
 
     stages {
@@ -14,17 +21,79 @@ pipeline {
             }
         }
 
-        stage('Check Tools') {
+        stage('Check Environment') {
             steps {
+                sh 'echo "Node: $NODE_NAME"'
                 sh 'git --version'
                 sh 'go version'
             }
         }
 
+        stage('Download Dependencies') {
+            steps {
+                sh 'go mod download'
+            }
+        }
+
+        stage('Verify Dependencies') {
+            steps {
+                sh 'go mod verify'
+            }
+        }
+
+        stage('Format Check') {
+            steps {
+                sh '''
+                    unformatted="$(gofmt -l .)"
+
+                    if [ -n "$unformatted" ]; then
+                        echo "File belum diformat:"
+                        echo "$unformatted"
+                        exit 1
+                    fi
+                '''
+            }
+        }
+
+        stage('Vet') {
+            steps {
+                sh 'go vet ./...'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'go test -v ./...'
+            }
+        }
+
         stage('Build') {
             steps {
-                echo 'Building application...'
+                sh 'mkdir -p bin && go build -o bin/intro-ci-cd .'
             }
+        }
+
+        stage('Archive Artifact') {
+            steps {
+                archiveArtifacts(
+                    artifacts: 'bin/intro-ci-cd',
+                    fingerprint: true
+                )
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CI Go berhasil.'
+        }
+
+        failure {
+            echo 'CI Go gagal. Periksa stage yang merah.'
+        }
+
+        always {
+            echo "Pipeline selesai pada node: ${env.NODE_NAME}"
         }
     }
 }

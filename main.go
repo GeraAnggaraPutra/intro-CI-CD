@@ -5,14 +5,18 @@ import (
 	"net/http"
 )
 
+func NewFileServerHandler(dir string) http.Handler {
+	return http.FileServer(http.Dir(dir))
+}
+
 func main() {
-	fs := http.FileServer(http.Dir("./static"))
-	http.Handle("/", fs)
+	const port = ":2000"
+	handler := NewFileServerHandler("./static")
 
-	log.Println("listening on port 2000...")
+	http.Handle("/", handler)
 
-	err := http.ListenAndServe(":2000", nil)
-	if err != nil {
+	log.Printf("listening on port %s...", port)
+	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
