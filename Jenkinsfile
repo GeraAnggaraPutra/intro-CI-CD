@@ -13,7 +13,7 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 10, unit: 'MINUTES')
+        timeout(time: 15, unit: 'MINUTES')
         disableConcurrentBuilds()
         skipDefaultCheckout(true)
 
@@ -27,6 +27,7 @@ pipeline {
 
     environment {
         CGO_ENABLED = '0'
+        IMAGE_NAME = 'intro-ci-cd'
     }
 
     stages {
@@ -39,8 +40,10 @@ pipeline {
         stage('Check Environment') {
             steps {
                 sh 'echo "Node: $NODE_NAME"'
+                sh 'echo "Workspace: $WORKSPACE"'
                 sh 'git --version'
                 sh 'go version'
+                sh 'docker version'
             }
         }
 
@@ -62,10 +65,12 @@ pipeline {
                     unformatted="$(gofmt -l .)"
 
                     if [ -n "$unformatted" ]; then
-                        echo "File belum diformat:"
+                        echo "File berikut belum diformat:"
                         echo "$unformatted"
                         exit 1
                     fi
+
+                    echo "Semua file Go sudah diformat."
                 '''
             }
         }
@@ -88,7 +93,7 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build Binary') {
             steps {
                 sh 'mkdir -p bin && go build -o bin/intro-ci-cd .'
             }
@@ -102,18 +107,64 @@ pipeline {
                 )
             }
         }
+
+        stage('Prepare Image Tag') {
+            steps {
+                script {
+                    env.SHORT_COMMIT = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
+                }
+
+                echo "Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+            }
+        }
+
+        stage('Inspect Docker Image') {
+            steps {
+                sh 'docker image inspect ${IMAGE_NAME}:${IMAGE_TAG}'
+            }
+        }
+
+        stage('Smoke Test Container') {
+            steps {
+                sh '''
+                    docker rm -f intro-ci-cd-test 2>/dev/null || true
+
+                    docker run -d \
+                        --name intro-ci-cd-test \
+                        -p 2000:2000 \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    sleep 3
+
+                    docker ps --filter "name=intro-ci-cd-test"
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'CI Go berhasil.'
+            echo 'Pipeline berhasil.'
+            echo "Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
         }
 
         failure {
-            echo 'CI Go gagal. Periksa stage yang gagal.'
+            echo 'Pipeline gagal. Periksa stage yang merah.'
         }
 
         always {
+            sh 'docker rm -f intro-ci-cd-test 2>/dev/null || true'
             echo "Pipeline selesai pada node: ${env.NODE_NAME}"
         }
     }
