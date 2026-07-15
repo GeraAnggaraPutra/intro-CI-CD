@@ -3,14 +3,6 @@ pipeline {
         label 'go'
     }
 
-    parameters {
-        booleanParam(
-            name: 'RUN_TEST',
-            defaultValue: true,
-            description: 'Jalankan unit test'
-        )
-    }
-
     options {
         timestamps()
         timeout(time: 15, unit: 'MINUTES')
@@ -28,6 +20,7 @@ pipeline {
     environment {
         CGO_ENABLED = '0'
         IMAGE_NAME = 'intro-ci-cd'
+        TEST_CONTAINER_NAME = 'intro-ci-cd-test'
     }
 
     stages {
@@ -44,6 +37,7 @@ pipeline {
                 sh 'git --version'
                 sh 'go version'
                 sh 'docker version'
+                sh 'curl --version'
             }
         }
 
@@ -82,12 +76,6 @@ pipeline {
         }
 
         stage('Test') {
-            when {
-                expression {
-                    return params.RUN_TEST
-                }
-            }
-
             steps {
                 sh 'go test -v ./...'
             }
@@ -138,16 +126,28 @@ pipeline {
         stage('Smoke Test Container') {
             steps {
                 sh '''
-                    docker rm -f intro-ci-cd-test 2>/dev/null || true
+                    docker rm -f ${TEST_CONTAINER_NAME} 2>/dev/null || true
 
                     docker run -d \
-                        --name intro-ci-cd-test \
+                        --name ${TEST_CONTAINER_NAME} \
                         -p 2000:2000 \
                         ${IMAGE_NAME}:${IMAGE_TAG}
 
-                    sleep 3
+                    echo "Menunggu aplikasi siap..."
 
-                    docker ps --filter "name=intro-ci-cd-test"
+                    for attempt in 1 2 3 4 5 6 7 8 9 10; do
+                        if curl --fail --silent --show-error http://localhost:2000 > /dev/null; then
+                            echo "Aplikasi berhasil menerima HTTP request."
+                            exit 0
+                        fi
+
+                        echo "Percobaan $attempt gagal. Mencoba kembali..."
+                        sleep 2
+                    done
+
+                    echo "Aplikasi tidak siap setelah 10 percobaan."
+                    docker logs ${TEST_CONTAINER_NAME}
+                    exit 1
                 '''
             }
         }
@@ -164,7 +164,7 @@ pipeline {
         }
 
         always {
-            sh 'docker rm -f intro-ci-cd-test 2>/dev/null || true'
+            sh 'docker rm -f ${TEST_CONTAINER_NAME} 2>/dev/null || true'
             echo "Pipeline selesai pada node: ${env.NODE_NAME}"
         }
     }
