@@ -8,6 +8,13 @@ pipeline {
         timeout(time: 10, unit: 'MINUTES')
         disableConcurrentBuilds()
         skipDefaultCheckout(true)
+
+        buildDiscarder(
+            logRotator(
+                numToKeepStr: '10',
+                artifactNumToKeepStr: '5'
+            )
+        )
     }
 
     environment {
@@ -89,7 +96,7 @@ pipeline {
         }
 
         failure {
-            echo 'CI Go gagal. Periksa stage yang merah.'
+            echo 'CI Go gagal. Periksa stage yang gagal.'
         }
 
         always {
