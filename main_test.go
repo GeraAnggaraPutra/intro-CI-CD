@@ -41,7 +41,7 @@ func TestFileServerHandler(t *testing.T) {
 		{
 			name:           "Status 404 on non-existent file",
 			requestPath:    "/not-found.html",
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus: http.StatusNotFound,
 			expectedBody:   "404 page not found\n",
 		},
 	}
