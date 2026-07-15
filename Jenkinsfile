@@ -21,6 +21,7 @@ pipeline {
         CGO_ENABLED = '0'
         IMAGE_NAME = 'intro-ci-cd'
         TEST_CONTAINER_NAME = 'intro-ci-cd-test'
+        DOCKER_NETWORK = 'cicd-network'
     }
 
     stages {
@@ -130,13 +131,13 @@ pipeline {
 
                     docker run -d \
                         --name ${TEST_CONTAINER_NAME} \
-                        -p 2000:2000 \
+                        --network ${DOCKER_NETWORK} \
                         ${IMAGE_NAME}:${IMAGE_TAG}
 
                     echo "Menunggu aplikasi siap..."
 
                     for attempt in 1 2 3 4 5 6 7 8 9 10; do
-                        if curl --fail --silent --show-error http://localhost:2000 > /dev/null; then
+                        if curl --fail --silent --show-error http://${TEST_CONTAINER_NAME}:2000 > /dev/null; then
                             echo "Aplikasi berhasil menerima HTTP request."
                             exit 0
                         fi
