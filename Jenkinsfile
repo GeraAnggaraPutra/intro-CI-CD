@@ -14,37 +14,17 @@ pipeline {
             }
         }
 
-        stage('Inspect Workspace') {
+        stage('Check Tools') {
             steps {
-                sh 'pwd'
-                sh 'ls -la'
+                sh 'git --version'
+                sh 'go version'
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building intro-CI-CD...'
+                echo 'Building application...'
             }
-        }
-
-        stage('Test') {
-            steps {
-                echo 'Testing intro-CI-CD...'
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Pipeline berhasil'
-        }
-
-        failure {
-            echo 'Pipeline gagal. Periksa Console Output.'
-        }
-
-        always {
-            echo 'Pipeline selesai'
         }
     }
 }
