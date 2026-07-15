@@ -3,6 +3,14 @@ pipeline {
         label 'go'
     }
 
+    parameters {
+        booleanParam(
+            name: 'RUN_TEST',
+            defaultValue: true,
+            description: 'Jalankan unit test'
+        )
+    }
+
     options {
         timestamps()
         timeout(time: 10, unit: 'MINUTES')
@@ -69,6 +77,12 @@ pipeline {
         }
 
         stage('Test') {
+            when {
+                expression {
+                    return params.RUN_TEST
+                }
+            }
+
             steps {
                 sh 'go test -v ./...'
             }
