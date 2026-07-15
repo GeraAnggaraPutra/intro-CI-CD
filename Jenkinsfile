@@ -6,7 +6,7 @@ pipeline {
     parameters {
         booleanParam(
             name: 'RUN_TEST',
-            defaultValue: false,
+            defaultValue: true,
             description: 'Jalankan unit test'
         )
     }
